@@ -1,0 +1,225 @@
+#!/bin/bash - 
+
+#===============================================================================
+#
+#          FILE: i.aster.toar.sh
+# 
+#         USAGE: ./i.aster.toar.sh 
+# 
+#   DESCRIPTION: Converting ASTER L1B VNIR & SWIR DNs to Radiances/Reflectances
+#
+#         NOTES: Conversion for TIRs not implemented! To Do: Pythonise
+#
+#        AUTHOR: Nikos Alexandris, nik@nikosalexandris.net
+#
+#       CREATED: Trikala, Greece | 27/28. Oct. 2013
+#
+#===============================================================================
+
+# set -o nounset                              # Treat unset variables as an error
+ 
+# HardCoded MetaData! ### Adjust as Required #################################
+                                                                             #
+ 
+  # π, first 11 decimals
+  PI=3.14159265358
+                                                                             #
+  # Acquisition's Day of Year and estimated Earth-Sun Distance
+  DOY=44; ESD=0.98735
+                                                                             #
+  # Sun Zenith Angle based on the acquisition's Sun Elevation Angle
+  SEA=59.993192; SZA=$(echo "90 - ${SEA}" | bc )
+                                                                             #
+  # some echo
+  echo "Acquisition-specific parameters"
+  echo "Day of Year: ${DOY}, Earth-Sun Distance: ${ESD}, Sun Zenith Angle: ${SZA}"
+  echo -e "\n"
+ 
+                                                                             #
+#
+######################################################## HardCoded MetaData! #
+ 
+ 
+ 
+# Product Description ########################################################
+                                                                             #
+ 
+# # This Level 1B product contains radiometrically calibrated and geometrically 
+# # coregistered data for all ASTER channels. This product is created by applying 
+# # the radiometric and geometric coefficients to the Level 1A data. The bands have 
+# # been coregistered both between and within telescopes, and the data have been 
+# # resampled to apply the geometric corrections. As for the Level 1A product, these 
+# # Level 1B radiances are generated at 15m, 30m, and 90m resolutions corresponding 
+# # to the VNIR, SWIR, and TIR channels. Calibrated, at-sensor radiances are given 
+# # in W/(m 2 ･ mm ･ sr). This product serves as input to derived geophysical 
+# # products.
+ 
+# Products Summary
+ 
+# # Resolution : 15, 30, 90 m (VNIR, SWIR, TIR, respectively)
+# # Input Band: VNIR, SWIR, TIR
+# # Production : 310 scenes per day
+# # Science Team Contact : H. Fujisada
+ 
+#
+##############################################################################
+ 
+ 
+ 
+# Variables and Constants ####################################################
+ 
+# check command line parameters
+if [ -z "${2}" ] ;
+then
+echo "List the acquisition's Gain States for the VNIR & SWIR spectral bands, i.e. one of the \"High, Normal, L1 and L2\" separated by space."
+echo "Usage: $0 [High High Normal Normal Normal Normal Normal Normal Normal Normal] "
+exit 1
+fi
+ 
+# read Gain States
+GAINSTATE_1=${1}
+GAINSTATE_2=${2}
+GAINSTATE_3N=${3}
+GAINSTATE_3B=${4}
+GAINSTATE_4=${5}
+GAINSTATE_5=${6}
+GAINSTATE_6=${7}
+GAINSTATE_7=${8}
+GAINSTATE_8=${9}
+GAINSTATE_9=${10}
+ 
+ 
+# Calculated Unit Conversion Coefficients ( W / m^2 / sr / um ) ##############
+                                                                             #
+# Source: "How to calculate reflectance and temperature using ASTER data",
+  #     Prepared by Abduwasit Ghulam, September 2009
+# Source (2):
+  # <http://www.gis.slu.edu/RS/ASTER_Reflectance_Temperature_Calculation.php>
+# Source (3):
+  # <http://www.science.aster.ersdac.jspacesystems.or.jp/en/documnts/users_guide/part2/05_03.html>
+ 
+# VNIR Bands
+B1_High=0.676   ;   B1_Normal=1.688 ;   B1_Low1=2.25
+B2_High=0.708   ;   B2_Normal=1.415 ;   B2_Low1=1.89
+B3N_High=0.423  ;   B3N_Normal=0.862 ;  B3N_Low1=1.15
+B3B_High=0.423  ;   B3B_Normal=0.862 ;  B3B_Lo1=1.15
+ 
+# SWIR Bands
+B4_High=0.1087  ;   B4_Normal=0.2174    ;   B4_Low1=0.290   ;   B4_Low2=0.290
+B5_High=0.0348  ;   B5_Normal=0.0696    ;   B5_Low1=0.0925  ;   B5_Low2=0.409
+B6_High=0.0313  ;   B6_Normal=0.0625    ;   B6_Low1=0.0830  ;   B6_Low2=0.390
+B7_High=0.0299  ;   B7_Normal=0.0597    ;   B7_Low1=0.0795  ;   B7_Low2=0.332
+B8_High=0.0209  ;   B8_Normal=0.0417    ;   B8_Low1=0.0556  ;   B8_Low2=0.245
+B9_High=0.0159  ;   B9_Normal=0.0318    ;   B9_Low1=0.0424  ;   B9_Low2=0.265
+ 
+# TIR Bands
+B10_Normal=0.006822
+B11_Normal=0.006780
+B12_Normal=0.006590
+B13_Normal=0.005693
+B14_Normal=0.005225
+ 
+#
+##############################################################################
+ 
+ 
+# Missing: Spectral Band Effective Bandwidth, Δλ #############################
+                                                                             #
+#
+# Some Effective Wavelengths required for the TIRs conversions... ToDo!
+#
+ 
+#
+##############################################################################
+ 
+ 
+ 
+# Band-Averaged Solar Spectral Irradiance [W/sq.m./micro-m] ( Esun ) #########
+                                                                             #
+ 
+# Commented Columns: 1st: Band #, 2nd: Smith, 3rd: Thome (A), 4th: Thome (B)
+ 
+B1_Esun=1845.99 #   1   ;   1845.99 ;   1847    ;   1848
+B2_Esun=1555.74 #   2   ;   1555.74 ;   1553    ;   1549
+B3N_Esun=1119.47#   3N  ;   1119.47 ;   1118    ;   1114
+B3B_Esun=1119.47#   3B  ;   1119.47 ;   1118    ;   1114
+ 
+B4_Esun=231.25  #   4   ;   231.25  ;   232.5   ;   225.4
+B5_Esun=79.81   #   5   ;   79.81   ;   80.32   ;   86.63
+B6_Esun=74.99   #   6   ;   74.99   ;   74.92   ;   81.85
+B7_Esun=68.66   #   7   ;   68.66   ;   69.20   ;   74.85
+B8_Esun=59.74   #   8   ;   59.74   ;   59.82   ;   66.49
+B9_Esun=56.92   #   9   ;   56.92   ;   57.32   ;   59.85
+ 
+# 10
+# 11
+# 12
+# 13
+# 14
+ 
+#
+##################################################################### Esun ###
+ 
+ 
+ 
+# loop over VNIR & SWIR bands
+for BAND in 1 2 3N 3B 4 5 6 7 8 9 ; do
+ 
+  # some echo
+  echo -e "Processing spectral band \"${BAND}\""
+ 
+  # set band parameters as variables
+  eval GAINSTATE=GAINSTATE_${BAND}
+  eval CUCC="B${BAND}_${!GAINSTATE}"
+ 
+  echo "* Instructed Gain State: ${!GAINSTATE} // Corresponding Conversion Coefficient: ${!CUCC}"
+ 
+  # set region
+#   echo "* Region matching the ${BAND} spectral band."
+  g.region rast=${BAND}_DNs
+ 
+  # conversion of ASTER L1B DNs to Radiance (32-bit calculations)
+  echo "* Converting Digital Numbers to Spectral Radiances..." | tr -d "\n"
+  r.mapcalc "${BAND}_Radiance = ( ${BAND}_DNs - 1 ) * double(${!CUCC})"
+ 
+  # report range
+  echo "* Range of calculated Spectral Radiances: " | tr -d "\n"
+  # r.info -r "${BAND}_Radiance"
+  r.info -r "${BAND}_Radiance" | tr "\n" "," | cut -d"," -f1,2 | sed 's/,/,\ /'
+  echo
+ 
+  # add info
+  r.support map=${BAND}_Radiance \
+  title="" \
+  units="W / sq.m. / μm / ster" \
+  description="Band `echo ${BAND}` Top-of-Atmosphere Spectral Radiance [W/m^2/sr/μm]" \
+  source1='Update This Field...'
+ 
+  # Esun
+  eval BAND_Esun="B${BAND}_Esun"
+ 
+  # some echo
+  echo -e "* Esun= ${!BAND_Esun} // Earth Sun Distance= ${ESD} // Solar Zenith Angle= ${SZA}"
+ 
+  # calculate ToAR
+  echo "* Converting Radiances to Top of Atmosphere Reflectances..." | tr -d "\n"
+  r.mapcalc "${BAND}_ToAR = \
+    ( ${PI} * ${BAND}_Radiance * ${ESD}^2 ) / ( ${!BAND_Esun} * cos(${SZA}) )"
+ 
+  # report range
+  echo "* Range of calculated Reflectances: " | tr -d "\n"
+  r.info -r ${BAND}_ToAR | tr "\n" "," | cut -d"," -f1,2 | sed 's/,/,\ /'
+ 
+  # add some metadata
+  r.support map=${BAND}_ToAR \
+  title="echo Band ${BAND} (Top of Atmosphere Reflectance)" \
+  units="Unitless Reflectance" \
+  description="Top of Atmosphere band `echo ${BAND}` spectral Reflectance (unitless)" \
+  source1='"Update This Field...' \
+  source2="Update This Field..." \
+  history="Pi=3.14159265358; Gain=${!GAINSTATE}; CUCC= ${!CUCC}; ESD=${ESD}; Esun=${!BAND_Esun}; SZA=${SZA}"
+ 
+  echo -e "\n"
+ 
+done
+
